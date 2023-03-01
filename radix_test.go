@@ -1,6 +1,8 @@
 package radix
 
-import "testing"
+import (
+	"testing"
+)
 
 type kv struct {
 	key   string
@@ -37,6 +39,31 @@ func testTree(t *testing.T, kvs []kv) {
 		v := tr.Search(kv.key)
 		if kv.value != v {
 			t.Fatalf("expected: %v, got: %v", kv.value, v)
+		}
+	}
+}
+
+func TestTree_Delete(t *testing.T) {
+	tr := New()
+
+	for _, kv := range basicKvs {
+		tr.Add(kv.key, kv.value)
+	}
+
+	for _, kv := range basicKvs {
+		v := tr.Search(kv.key)
+		if v == nil {
+			t.Fatalf("expected a value for %s", kv.key)
+		}
+
+		ok := tr.Delete(kv.key)
+		if !ok {
+			t.Fatalf("expected to delete %s", kv.key)
+		}
+
+		v = tr.Search(kv.key)
+		if v != nil {
+			t.Fatalf("expected %s to be deleted", kv.key)
 		}
 	}
 }
