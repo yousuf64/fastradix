@@ -148,7 +148,7 @@ LOOP:
 			parent.index()
 
 			// Should merge?
-			if len(parent.children) == 1 && parent.value == nil {
+			if parent != t.node && len(parent.children) == 1 && parent.value == nil {
 				parent.prefix = parent.prefix + parent.children[0].prefix
 				parent.value = parent.children[0].value
 				parent.children = parent.children[0].children
@@ -193,7 +193,7 @@ LOOP:
 				parent.index()
 
 				// Merge sibling to parent.
-				if len(parent.children) == 1 && parent.value == nil {
+				if parent != t.node && len(parent.children) == 1 && parent.value == nil {
 					parent.prefix = parent.prefix + parent.children[0].prefix
 					parent.value = parent.children[0].value
 					parent.children = parent.children[0].children
