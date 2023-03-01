@@ -127,6 +127,43 @@ LOOP:
 	return nil
 }
 
+func (t *Tree) DeletePrefix(prefix string) bool {
+	parent := t.node
+
+LOOP:
+	if c := prefix[0]; c >= parent.min && c <= parent.max {
+		var nd *node
+		var index int
+		for i, b := range []byte(parent.indices) {
+			if c == b {
+				nd = parent.children[i]
+				index = i
+			}
+		}
+		if nd == nil {
+			return false
+		}
+		if strings.HasPrefix(nd.prefix, prefix) {
+			parent.children = append(parent.children[:index], parent.children[index+1:]...)
+			parent.index()
+
+			// Should merge?
+			if len(parent.children) == 1 && parent.value == nil {
+				parent.prefix = parent.prefix + parent.children[0].prefix
+				parent.value = parent.children[0].value
+				parent.children = parent.children[0].children
+				parent.index()
+			}
+			return true
+		} else if strings.HasPrefix(prefix, nd.prefix) {
+			parent = nd
+			prefix = prefix[len(parent.prefix):]
+			goto LOOP
+		}
+	}
+	return false
+}
+
 type node struct {
 	prefix   string
 	value    interface{}
@@ -138,6 +175,9 @@ type node struct {
 
 func (n *node) index() {
 	if len(n.children) == 0 {
+		n.indices = ""
+		n.min = 0
+		n.max = 0
 		return
 	}
 
