@@ -100,7 +100,7 @@ func longestCommonPrefix(s1, s2 string) int {
 
 func (t *Tree) Search(key string) interface{} {
 	parent := t.node
-begin:
+LOOP:
 
 	if c := key[0]; c >= parent.min && c <= parent.max {
 		var nd *node
@@ -120,7 +120,7 @@ begin:
 			// dfs into it.
 			parent = nd
 			key = key[len(parent.prefix):]
-			goto begin
+			goto LOOP
 		}
 	}
 
