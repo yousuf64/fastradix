@@ -16,6 +16,10 @@ func New() *Tree {
 
 func (t *Tree) Add(key string, value interface{}) {
 	parent := t.node
+	if key == "" {
+		parent.value = value
+		return
+	}
 
 LOOP:
 	if c := key[0]; c >= parent.min && c <= parent.max {
@@ -100,6 +104,10 @@ func longestCommonPrefix(s1, s2 string) int {
 
 func (t *Tree) Search(key string) interface{} {
 	parent := t.node
+	if key == "" {
+		return parent.value
+	}
+
 LOOP:
 
 	if c := key[0]; c >= parent.min && c <= parent.max {
@@ -129,6 +137,15 @@ LOOP:
 
 func (t *Tree) DeletePrefix(prefix string) bool {
 	parent := t.node
+	if prefix == "" {
+		if hasValues := parent.value != nil || len(parent.children) > 0; hasValues {
+			parent.value = nil
+			parent.children = nil
+			parent.index()
+			return true
+		}
+		return false
+	}
 
 LOOP:
 	if c := prefix[0]; c >= parent.min && c <= parent.max {
@@ -166,6 +183,13 @@ LOOP:
 
 func (t *Tree) Delete(key string) bool {
 	parent := t.node
+	if key == "" {
+		if parent.value != nil {
+			parent.value = nil
+			return true
+		}
+		return false
+	}
 
 LOOP:
 	if c := key[0]; c >= parent.min && c <= parent.max {
