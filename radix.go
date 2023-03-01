@@ -214,15 +214,15 @@ LOOP:
 			if len(nd.children) == 0 {
 				// Remove node.
 				parent.children = append(parent.children[:index], parent.children[index+1:]...)
-				parent.index()
 
 				// Merge sibling to parent.
 				if parent != t.node && len(parent.children) == 1 && parent.value == nil {
 					parent.prefix = parent.prefix + parent.children[0].prefix
 					parent.value = parent.children[0].value
 					parent.children = parent.children[0].children
-					parent.index()
 				}
+
+				parent.index()
 			} else if len(nd.children) == 1 {
 				// Merge child to node.
 				nd.prefix = nd.prefix + nd.children[0].prefix
