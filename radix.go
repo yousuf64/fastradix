@@ -241,6 +241,28 @@ LOOP:
 	return false
 }
 
+type KV struct {
+	Key   string
+	Value interface{}
+}
+
+func (t *Tree) DFSWalk(f func(KV)) {
+	node := t.node
+	node.dfs(node.prefix, f)
+}
+
+func (n *node) dfs(prefix string, f func(kv KV)) {
+	prefix = prefix + n.prefix
+
+	if n.value != nil {
+		f(KV{prefix, n.value})
+	}
+
+	for _, child := range n.children {
+		child.dfs(prefix, f)
+	}
+}
+
 type node struct {
 	prefix   string
 	value    interface{}
