@@ -67,3 +67,95 @@ func TestTree_Delete(t *testing.T) {
 		}
 	}
 }
+
+func TestTree_DeletePrefix(t *testing.T) {
+	tr := New()
+
+	tt := map[string][]kv{
+		"kube": {
+			{
+				key:   "kubernetes",
+				value: 911,
+			},
+			{
+				key:   "kubectl",
+				value: "abc",
+			},
+		},
+		"hash": {
+			{
+				key:   "hash",
+				value: "foo",
+			},
+			{
+				key:   "hashmap",
+				value: true,
+			},
+			{
+				key:   "hashicorp",
+				value: 0xF5,
+			},
+		},
+		"orders": {
+			{
+				key:   "orders/:id",
+				value: "get orders by id",
+			},
+			{
+				key:   "orders/create",
+				value: "create new order",
+			},
+			{
+				key:   "orders/all",
+				value: "get all orders",
+			},
+			{
+				key:   "orders/update/:id",
+				value: "update order by id",
+			},
+			{
+				key:   "orders/delete/:id",
+				value: "delete order by id",
+			},
+		},
+	}
+
+	// Insert.
+	for _, kvs := range tt {
+		for _, kv := range kvs {
+			tr.Add(kv.key, kv.value)
+		}
+	}
+
+	// Assert insertion.
+	for _, kvs := range tt {
+		for _, kv := range kvs {
+			v := tr.Search(kv.key)
+			if v == nil {
+				t.Fatalf("expected a value for %s", kv.key)
+			}
+		}
+	}
+
+	// Delete Prefix.
+	for prefix, kvs := range tt {
+		ok := tr.DeletePrefix(prefix)
+		if !ok {
+			t.Fatalf("expected to delete for prefix %s", prefix)
+		}
+
+		// Re-attempt.
+		ok = tr.DeletePrefix(prefix)
+		if ok {
+			t.Fatalf("expected to have been deleted already for %s", prefix)
+		}
+
+		// Assert deletion.
+		for _, kv := range kvs {
+			v := tr.Search(kv.key)
+			if v != nil {
+				t.Fatalf("expected %s to have been deleted", kv.key)
+			}
+		}
+	}
+}
