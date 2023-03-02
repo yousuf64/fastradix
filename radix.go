@@ -241,6 +241,10 @@ LOOP:
 	return false
 }
 
+func (t *Tree) Has(key string) bool {
+	return t.Search(key) != nil
+}
+
 type KV struct {
 	Key   string
 	Value interface{}
