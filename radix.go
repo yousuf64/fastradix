@@ -267,6 +267,30 @@ func (n *node) dfs(prefix string, f func(kv KV)) {
 	}
 }
 
+func (t *Tree) BFSWalk(fn func(KV)) {
+	prefixes := make([]string, 0, 32)
+	prefixes = append(prefixes, t.node.prefix)
+	nodes := make([]*node, 0, 32)
+	nodes = append(nodes, t.node)
+
+	for i := 0; ; i++ {
+		if i >= len(nodes) {
+			break
+		}
+
+		node := nodes[i]
+		prefix := prefixes[i] + node.prefix
+		if node.value != nil {
+			fn(KV{prefix, node.value})
+		}
+
+		nodes = append(nodes, node.children...)
+		for k := 0; k < len(node.children); k++ {
+			prefixes = append(prefixes, prefix)
+		}
+	}
+}
+
 type node struct {
 	prefix   string
 	value    interface{}
