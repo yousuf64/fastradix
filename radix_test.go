@@ -159,3 +159,49 @@ func TestTree_DeletePrefix(t *testing.T) {
 		}
 	}
 }
+
+func TestTree_DFSWalk(t *testing.T) {
+	tr := New()
+
+	for _, kv := range basicKvs {
+		tr.Add(kv.key, kv.value)
+	}
+
+	walked := make(map[string]interface{}, len(basicKvs))
+	tr.DFSWalk(func(kv KV) {
+		walked[kv.Key] = kv.Value
+	})
+
+	for _, kv := range basicKvs {
+		value, ok := walked[kv.key]
+		if !ok {
+			t.Fatalf("expected to have walked over '%s'", kv.key)
+		}
+		if value != kv.value {
+			t.Fatalf("for '%s' expected: %v, got: %v", kv.key, kv.value, value)
+		}
+	}
+}
+
+func TestTree_BFSWalk(t *testing.T) {
+	tr := New()
+
+	for _, kv := range basicKvs {
+		tr.Add(kv.key, kv.value)
+	}
+
+	walked := make(map[string]interface{}, len(basicKvs))
+	tr.BFSWalk(func(kv KV) {
+		walked[kv.Key] = kv.Value
+	})
+
+	for _, kv := range basicKvs {
+		value, ok := walked[kv.key]
+		if !ok {
+			t.Fatalf("expected to have walked over '%s'", kv.key)
+		}
+		if value != kv.value {
+			t.Fatalf("for '%s' expected: %v, got: %v", kv.key, kv.value, value)
+		}
+	}
+}
