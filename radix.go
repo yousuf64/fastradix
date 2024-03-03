@@ -6,15 +6,15 @@ import (
 	"unsafe"
 )
 
-type Tree struct {
-	*node
+type Tree[T comparable] struct {
+	*node[T]
 }
 
-func New() *Tree {
-	return &Tree{&node{}}
+func New[T comparable]() *Tree[T] {
+	return &Tree[T]{&node[T]{}}
 }
 
-func (t *Tree) Add(key string, value interface{}) {
+func (t *Tree[T]) Add(key string, value T) {
 	parent := t.node
 	if key == "" {
 		parent.value = value
@@ -23,12 +23,13 @@ func (t *Tree) Add(key string, value interface{}) {
 
 LOOP:
 	if c := key[0]; c >= parent.min && c <= parent.max {
-		var nd *node
+		var nd *node[T]
 		var index int
 		for i, b := range []byte(parent.indices) {
 			if c == b {
 				nd = parent.children[i]
 				index = i
+				break
 			}
 		}
 		if nd == nil {
@@ -54,7 +55,7 @@ LOOP:
 			// Expansion.
 			// pfx: categories|/skus
 			// seg: categories|
-			branchNode := &node{prefix: nd.prefix[:longest], value: value, children: make([]*node, 1)}
+			branchNode := &node[T]{prefix: nd.prefix[:longest], value: value, children: make([]*node[T], 1)}
 			nd.prefix = nd.prefix[longest:]
 			branchNode.children[0] = nd
 			branchNode.index()
@@ -66,8 +67,8 @@ LOOP:
 			// Collision.
 			// pfx: cat|egories
 			// seg: cat|woman
-			newNode := &node{prefix: key[longest:], value: value}
-			branchNode := &node{prefix: nd.prefix[:longest], children: make([]*node, 2)}
+			newNode := &node[T]{prefix: key[longest:], value: value}
+			branchNode := &node[T]{prefix: nd.prefix[:longest], children: make([]*node[T], 2)}
 			nd.prefix = nd.prefix[longest:]
 			branchNode.children[0] = nd
 			branchNode.children[1] = newNode
@@ -80,7 +81,7 @@ LOOP:
 	}
 
 FALLBACK:
-	parent.children = append(parent.children, &node{
+	parent.children = append(parent.children, &node[T]{
 		prefix: key,
 		value:  value,
 	})
@@ -88,13 +89,13 @@ FALLBACK:
 }
 
 func longestCommonPrefix(s1, s2 string) int {
-	max := len(s1)
-	if length := len(s2); length < max {
-		max = length
+	maxLen := len(s1)
+	if length := len(s2); length < maxLen {
+		maxLen = length
 	}
 
 	i := 0
-	for ; i < max; i++ {
+	for ; i < maxLen; i++ {
 		if s1[i] != s2[i] {
 			break
 		}
@@ -102,28 +103,28 @@ func longestCommonPrefix(s1, s2 string) int {
 	return i
 }
 
-func (t *Tree) Search(key string) interface{} {
+func (t *Tree[T]) Search(key string) (T, bool) {
 	parent := t.node
 	if key == "" {
-		return parent.value
+		return parent.value, !parent.IsZero()
 	}
 
 LOOP:
 
 	if c := key[0]; c >= parent.min && c <= parent.max {
-		var nd *node
+		var nd *node[T]
 		for i, b := range []byte(parent.indices) {
 			if c == b {
 				nd = parent.children[i]
 			}
 		}
 		if nd == nil {
-			return nil
+			return *new(T), false
 		}
 
 		if key == nd.prefix {
 			// reached the end.
-			return nd.value
+			return nd.value, !nd.IsZero()
 		} else if strings.HasPrefix(key, nd.prefix) {
 			// dfs into it.
 			parent = nd
@@ -132,14 +133,61 @@ LOOP:
 		}
 	}
 
-	return nil
+	return *new(T), false
 }
 
-func (t *Tree) DeletePrefix(prefix string) bool {
+func (t *Tree[T]) StartsWith(s string) (KVs []KV[T]) {
+	prefix := ""
+	parent := t.node
+
+LOOP:
+	if len(s) > 0 {
+		if c := s[0]; c >= parent.min && c <= parent.max {
+			var nd *node[T]
+			for i, b := range []byte(parent.indices) {
+				if c == b {
+					nd = parent.children[i]
+				}
+			}
+
+			if strings.HasPrefix(s, nd.prefix) {
+				// dfs into it.
+				parent = nd
+				s = s[len(parent.prefix):]
+				prefix = prefix + parent.prefix
+				goto LOOP
+			} else if strings.HasPrefix(nd.prefix, s) {
+				parent = nd
+				s = s[:0]
+				prefix = prefix + parent.prefix
+			}
+		}
+	}
+
+	if len(s) > 0 {
+		panic("not exhausted")
+	}
+
+	// Add last matched node if having a valid value.
+	//if !parent.IsZero() {
+	//	KVs = append(KVs, KV[T]{
+	//		Key:   parent.prefix,
+	//		Value: parent.value,
+	//	})
+	//}
+
+	// DFS recursively and add KVs.
+	parent.dfs(prefix[:len(prefix)-len(parent.prefix)], func(kv KV[T]) {
+		KVs = append(KVs, kv)
+	})
+	return
+}
+
+func (t *Tree[T]) DeletePrefix(prefix string) bool {
 	parent := t.node
 	if prefix == "" {
-		if hasValues := parent.value != nil || len(parent.children) > 0; hasValues {
-			parent.value = nil
+		if hasValues := !parent.IsZero() || len(parent.children) > 0; hasValues {
+			parent.value = *new(T)
 			parent.children = nil
 			parent.index()
 			return true
@@ -149,7 +197,7 @@ func (t *Tree) DeletePrefix(prefix string) bool {
 
 LOOP:
 	if c := prefix[0]; c >= parent.min && c <= parent.max {
-		var nd *node
+		var nd *node[T]
 		var index int
 		for i, b := range []byte(parent.indices) {
 			if c == b {
@@ -165,7 +213,7 @@ LOOP:
 			parent.index()
 
 			// Should merge?
-			if parent != t.node && len(parent.children) == 1 && parent.value == nil {
+			if parent != t.node && len(parent.children) == 1 && parent.IsZero() {
 				parent.prefix = parent.prefix + parent.children[0].prefix
 				parent.value = parent.children[0].value
 				parent.children = parent.children[0].children
@@ -181,11 +229,11 @@ LOOP:
 	return false
 }
 
-func (t *Tree) Delete(key string) bool {
+func (t *Tree[T]) Delete(key string) bool {
 	parent := t.node
 	if key == "" {
-		if parent.value != nil {
-			parent.value = nil
+		if !parent.IsZero() {
+			parent.value = *new(T)
 			return true
 		}
 		return false
@@ -193,7 +241,7 @@ func (t *Tree) Delete(key string) bool {
 
 LOOP:
 	if c := key[0]; c >= parent.min && c <= parent.max {
-		var nd *node
+		var nd *node[T]
 		var index int
 		for i, b := range []byte(parent.indices) {
 			if c == b {
@@ -206,17 +254,17 @@ LOOP:
 		}
 		if key == nd.prefix {
 			// reached the end.
-			if nd.value == nil {
+			if nd.IsZero() {
 				return false
 			}
 
-			nd.value = nil
+			nd.value = *new(T)
 			if len(nd.children) == 0 {
 				// Remove node.
 				parent.children = append(parent.children[:index], parent.children[index+1:]...)
 
 				// Merge sibling to parent.
-				if parent != t.node && len(parent.children) == 1 && parent.value == nil {
+				if parent != t.node && len(parent.children) == 1 && parent.IsZero() {
 					parent.prefix = parent.prefix + parent.children[0].prefix
 					parent.value = parent.children[0].value
 					parent.children = parent.children[0].children
@@ -241,36 +289,37 @@ LOOP:
 	return false
 }
 
-func (t *Tree) Has(key string) bool {
-	return t.Search(key) != nil
+func (t *Tree[T]) Has(key string) bool {
+	_, ok := t.Search(key)
+	return ok
 }
 
-type KV struct {
+type KV[T comparable] struct {
 	Key   string
-	Value interface{}
+	Value T
 }
 
-func (t *Tree) DFSWalk(f func(KV)) {
+func (t *Tree[T]) DFSWalk(f func(KV[T])) {
 	node := t.node
 	node.dfs(node.prefix, f)
 }
 
-func (n *node) dfs(prefix string, f func(kv KV)) {
+func (n *node[T]) dfs(prefix string, fn func(kv KV[T])) {
 	prefix = prefix + n.prefix
 
-	if n.value != nil {
-		f(KV{prefix, n.value})
+	if !n.IsZero() {
+		fn(KV[T]{prefix, n.value})
 	}
 
 	for _, child := range n.children {
-		child.dfs(prefix, f)
+		child.dfs(prefix, fn)
 	}
 }
 
-func (t *Tree) BFSWalk(fn func(KV)) {
+func (t *Tree[T]) BFSWalk(fn func(KV[T])) {
 	prefixes := make([]string, 0, 32)
 	prefixes = append(prefixes, t.node.prefix)
-	nodes := make([]*node, 0, 32)
+	nodes := make([]*node[T], 0, 32)
 	nodes = append(nodes, t.node)
 
 	for i := 0; ; i++ {
@@ -280,8 +329,8 @@ func (t *Tree) BFSWalk(fn func(KV)) {
 
 		node := nodes[i]
 		prefix := prefixes[i] + node.prefix
-		if node.value != nil {
-			fn(KV{prefix, node.value})
+		if !node.IsZero() {
+			fn(KV[T]{prefix, node.value})
 		}
 
 		nodes = append(nodes, node.children...)
@@ -291,16 +340,20 @@ func (t *Tree) BFSWalk(fn func(KV)) {
 	}
 }
 
-type node struct {
+type node[T comparable] struct {
 	prefix   string
-	value    interface{}
-	children []*node
+	value    T
+	children []*node[T]
 	indices  string
 	min      uint8
 	max      uint8
 }
 
-func (n *node) index() {
+func (n *node[T]) IsZero() bool {
+	return n.value == *new(T)
+}
+
+func (n *node[T]) index() {
 	if len(n.children) == 0 {
 		n.indices = ""
 		n.min = 0
@@ -324,5 +377,5 @@ func (n *node) index() {
 }
 
 func unsafeBytesToString(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
+	return unsafe.String(unsafe.SliceData(b), len(b))
 }
