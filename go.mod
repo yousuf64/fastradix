@@ -1,3 +1,3 @@
 module github.com/yousuf64/fastradix
 
-go 1.19
+go 1.22
